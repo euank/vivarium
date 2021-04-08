@@ -170,11 +170,7 @@ void viv_output_do_layout_if_necessary(struct viv_output *output) {
 }
 
 void viv_output_damage(struct viv_output *output) {
-    struct wlr_box geo_box = {
-        .width = output->wlr_output->width,
-        .height = output->wlr_output->height,
-    };
-    wlr_output_damage_add_box(output->damage, &geo_box);
+    wlr_output_damage_add_whole(output->damage);
 }
 
 void viv_output_mark_for_relayout(struct viv_output *output) {
