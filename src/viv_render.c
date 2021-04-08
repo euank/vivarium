@@ -1,11 +1,15 @@
 #include <time.h>
 
 #include <wlr/types/wlr_layer_shell_v1.h>
+#include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_matrix.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/util/region.h>
 #include <wlr/xwayland.h>
 #include <wayland-util.h>
+
+#include <pixman-1/pixman.h>
 
 #include "viv_types.h"
 #include "viv_view.h"
@@ -337,9 +341,18 @@ static bool viv_layer_is(struct viv_layer_view *layer_view, enum zwlr_layer_shel
 }
 
 void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output) {
-	if (!wlr_output_attach_render(output->wlr_output, NULL)) {
+    pixman_region32_t damage;
+    bool needs_frame;
+    pixman_region32_init(&damage);
+    bool attach_render_success = wlr_output_damage_attach_render(output->damage, &needs_frame, &damage);
+    wlr_log(WLR_INFO, "Return %d, needs frame: %d", attach_render_success, needs_frame);
+	if (!attach_render_success) {
 		return;
 	}
+    if (!needs_frame) {
+        wlr_output_rollback(output->wlr_output);
+        return;
+    }
 	/* The "effective" resolution can change if you rotate your outputs. */
 	int width, height;
 	wlr_output_effective_resolution(output->wlr_output, &width, &height);
@@ -425,13 +438,45 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
             wlr_render_rect(renderer, &output_marker_box, output_marker_colour, output->wlr_output->transform_matrix);
         }
     }
+
+    static bool even = true;
+    even = !even;
+    if (even) {
+        struct wlr_box output_marker_box = {
+            .x = 30, .y = 0, .width = 10, .height = 10
+        };
+        float output_marker_colour[4] = {1.0, 0.0, 0.0, 1.0};
+        wlr_render_rect(renderer ,&output_marker_box, output_marker_colour, output->wlr_output->transform_matrix);
+    } else {
+        struct wlr_box output_marker_box = {
+            .x = 30, .y = 0, .width = 10, .height = 10
+        };
+        float output_marker_colour[4] = {0.0, 1.0, 0.0, 1.0};
+        wlr_render_rect(renderer ,&output_marker_box, output_marker_colour, output->wlr_output->transform_matrix);
+    }
 #endif
 
     // Have wlroots render software cursors if necessary (does nothing
     // if hardware cursors available)
 	wlr_output_render_software_cursors(output->wlr_output, NULL);
 
-	// Conclude rendering and swap the buffers
+	// Conclude rendering
 	wlr_renderer_end(renderer);
+
+    // Calculate the frame damage before swapping the buffers
+	pixman_region32_t frame_damage;
+	pixman_region32_init(&frame_damage);
+
+    // Fill in frame damage
+    struct wlr_output *wlr_output = output->wlr_output;
+	int fwidth, fheight;
+	wlr_output_transformed_resolution(wlr_output, &fwidth, &fheight);
+	enum wl_output_transform transform = wlr_output_transform_invert(wlr_output->transform);
+    wlr_region_transform(&frame_damage, &output->damage->current, transform, fwidth, fheight);
+
+    wlr_output_set_damage(output->wlr_output, &frame_damage);
+	pixman_region32_fini(&frame_damage);
+
+    // Swap the buffers
 	wlr_output_commit(output->wlr_output);
 }

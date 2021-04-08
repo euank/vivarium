@@ -1,4 +1,5 @@
 #include <wayland-server-core.h>
+#include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output_layout.h>
 
 #include "viv_output.h"
@@ -138,9 +139,11 @@ void viv_output_init(struct viv_output *output, struct viv_server *server, struc
     output->excluded_margin.left = 0;
     output->excluded_margin.right = 0;
 
+    output->damage = wlr_output_damage_create(output->wlr_output);
+
 	/* Sets up a listener for the frame notify event. */
 	output->frame.notify = output_frame;
-	wl_signal_add(&wlr_output->events.frame, &output->frame);
+	wl_signal_add(&output->damage->events.frame, &output->frame);
 	wl_list_insert(&server->outputs, &output->link);
     wlr_log(WLR_INFO, "New output width width %d, height %d", wlr_output->width, wlr_output->height);
 

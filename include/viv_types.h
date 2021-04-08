@@ -40,6 +40,8 @@ struct viv_server {
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_surface;
 
+    struct wl_listener surface_commit;
+
 #ifdef XWAYLAND
     struct wlr_xwayland *xwayland_shell;
     xcb_atom_t window_type_atoms[WINDOW_TYPE_ATOM_MAX];
@@ -113,6 +115,8 @@ struct viv_output {
 	struct wlr_output *wlr_output;
 	struct wl_listener frame;
 
+    struct wlr_output_damage *damage;
+
     bool needs_layout;
     struct viv_workspace *current_workspace;
 
@@ -173,6 +177,7 @@ struct viv_view_implementation {
     void (*close)(struct viv_view *view);
     bool (*is_at)(struct viv_view *view, double lx, double ly, struct wlr_surface **surface, double *sx, double *sy);
     bool (*oversized)(struct viv_view *view);
+    void (*damage)(struct viv_view *view);
 };
 
 struct viv_view {
