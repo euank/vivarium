@@ -47,7 +47,7 @@ struct wlr_surface *viv_view_get_toplevel_surface(struct viv_view *view) {
 void viv_view_ensure_floating(struct viv_view *view) {
     if (!view->is_floating) {
         // Trigger a relayout only if tiling state is changing
-        view->workspace->needs_layout = true;
+        viv_workspace_mark_for_relayout(view->workspace);
     }
     view->is_floating = true;
 
@@ -58,7 +58,7 @@ void viv_view_ensure_floating(struct viv_view *view) {
 void viv_view_ensure_tiled(struct viv_view *view) {
     if (view->is_floating) {
         // Trigger a relayout only if tiling state is changing
-        view->workspace->needs_layout = true;
+        viv_workspace_mark_for_relayout(view->workspace);
     }
     view->is_floating = false;
 
@@ -94,8 +94,8 @@ void viv_view_shift_to_workspace(struct viv_view *view, struct viv_workspace *wo
         viv_view_focus(next_view, view->xdg_surface->surface);
     }
 
-    cur_workspace->needs_layout = true;
-    workspace->needs_layout = true;
+    viv_workspace_mark_for_relayout(cur_workspace);
+    viv_workspace_mark_for_relayout(workspace);
 
     cur_workspace->active_view = next_view;
     if (workspace->active_view == NULL) {
@@ -143,6 +143,10 @@ void viv_view_get_string_identifier(struct viv_view *view, char *buffer, size_t 
 
 bool viv_view_oversized(struct viv_view *view) {
     return view->implementation->oversized(view);
+}
+
+void viv_view_damage(struct viv_view *view) {
+    view->implementation->damage(view);
 }
 
 void viv_view_make_active(struct viv_view *view) {

@@ -17,6 +17,9 @@ static void process_cursor_move_view(struct viv_server *server, uint32_t time) {
 
     struct viv_view *view = server->grab_state.view;
 
+    // Damage before moving
+    viv_view_damage(view);
+
 	/* Move the grabbed view to the new position. */
 	view->x = server->cursor->x - server->grab_state.x;
 	view->y = server->cursor->y - server->grab_state.y;
@@ -31,6 +34,9 @@ static void process_cursor_move_view(struct viv_server *server, uint32_t time) {
     if (output_at_point != view->workspace->output) {
         viv_view_shift_to_workspace(view, output_at_point->current_workspace);
     }
+
+    // Damage after moving
+    viv_view_damage(view);
 }
 
 static void process_cursor_resize_view(struct viv_server *server, uint32_t time) {

@@ -197,8 +197,9 @@ static void event_xwayland_surface_unmap(struct wl_listener *listener, void *dat
     wl_list_insert(&view->server->unmapped_views, &view->workspace_link);
 
     struct viv_workspace *workspace = view->workspace;
-    workspace->needs_layout = true;
+    viv_workspace_mark_for_relayout(workspace);
 }
+
 
 static void event_xwayland_surface_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
@@ -298,6 +299,11 @@ static bool implementation_oversized(struct viv_view *view) {
     return surface_exceeds_bounds;
 }
 
+static void implementation_damage(struct viv_view *view) {
+    UNUSED(view);
+    // TODO
+}
+
 static struct viv_view_implementation xwayland_view_implementation = {
     .set_size = &implementation_set_size,
     .set_pos = &implementation_set_pos,
@@ -309,6 +315,7 @@ static struct viv_view_implementation xwayland_view_implementation = {
     .close = &implementation_close,
     .is_at = &implementation_is_at,
     .oversized = &implementation_oversized,
+    .damage = &implementation_damage
 };
 
 void viv_xwayland_view_init(struct viv_view *view, struct wlr_xwayland_surface *xwayland_surface) {

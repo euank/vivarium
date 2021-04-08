@@ -99,6 +99,8 @@ void viv_mappable_tile_window(struct viv_workspace *workspace, union viv_mappabl
         return;
     }
 
+    viv_view_damage(view);
+
     bool any_not_floating = false;
     struct viv_view *non_floating_view;
     wl_list_for_each(non_floating_view, &workspace->views, workspace_link) {
@@ -118,6 +120,8 @@ void viv_mappable_tile_window(struct viv_workspace *workspace, union viv_mappabl
         // Move to the end of the views (as all are floating)
         wl_list_insert(workspace->views.prev, &view->workspace_link);
     }
+
+    viv_workspace_mark_for_relayout(workspace);
 }
 
 void viv_mappable_next_layout(struct viv_workspace *workspace, union viv_mappable_payload payload) {
