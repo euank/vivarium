@@ -112,7 +112,7 @@ void viv_output_display_workspace(struct viv_output *output, struct viv_workspac
     if (other_output != NULL) {
         other_output->current_workspace = output->current_workspace;
         other_output->current_workspace->output = other_output;
-        other_output->needs_layout = true;
+        viv_output_mark_for_relayout(other_output);
     } else {
         output->current_workspace->output = NULL;
     }
@@ -125,7 +125,7 @@ void viv_output_display_workspace(struct viv_output *output, struct viv_workspac
 
     output->current_workspace = workspace;
     output->current_workspace->output = output;
-    output->needs_layout = true;
+    viv_output_mark_for_relayout(output);
 }
 
 void viv_output_init(struct viv_output *output, struct viv_server *server, struct wlr_output *wlr_output) {
@@ -167,4 +167,17 @@ void viv_output_do_layout_if_necessary(struct viv_output *output) {
 
     viv_layers_arrange(output);
     viv_workspace_do_layout(workspace);
+}
+
+void viv_output_damage(struct viv_output *output) {
+    struct wlr_box geo_box = {
+        .width = output->wlr_output->width,
+        .height = output->wlr_output->height,
+    };
+    wlr_output_damage_add_box(output->damage, &geo_box);
+}
+
+void viv_output_mark_for_relayout(struct viv_output *output) {
+    viv_output_mark_for_relayout(output);
+    viv_output_damage(output);
 }

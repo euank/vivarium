@@ -414,7 +414,7 @@ static void server_new_layer_surface(struct wl_listener *listener, void *data) {
     viv_layer_view_init(layer_view, server, layer_surface);
 
     struct viv_output *output = viv_output_of_wlr_output(server, layer_surface->output);
-    output->needs_layout = true;
+    viv_output_mark_for_relayout(output);
 
     wlr_log(WLR_INFO, "New layer surface props: layer %d, anchor %d, exclusive %d, margin (%d, %d, %d, %d), desired size (%d, %d), actual size (%d, %d)", state->layer, state->anchor, state->exclusive_zone, state->margin.top, state->margin.right, state->margin.bottom, state->margin.left, state->desired_width, state->desired_height, state->actual_width, state->actual_height);
 }
@@ -798,7 +798,7 @@ void viv_server_reload_config(struct viv_server *server) {
 
     struct viv_output *output;
     wl_list_for_each(output, &server->outputs, link) {
-        output->needs_layout = true;
+        viv_output_mark_for_relayout(output);
     }
 
     // TODO: Reset workspaces and layouts according to new config

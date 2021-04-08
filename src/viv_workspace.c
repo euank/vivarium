@@ -3,6 +3,7 @@
 
 #include "viv_cursor.h"
 #include "viv_layout.h"
+#include "viv_output.h"
 #include "viv_types.h"
 #include "viv_view.h"
 #include "viv_wl_list_utils.h"
@@ -126,7 +127,7 @@ void viv_workspace_swap_out(struct viv_output *output, struct wl_list *workspace
     new_workspace->output = output;
     output->current_workspace = new_workspace;
 
-    output->needs_layout = true;
+    viv_output_mark_for_relayout(output);
 
     if (new_workspace->active_view != NULL) {
         viv_view_focus(new_workspace->active_view, viv_view_get_toplevel_surface(new_workspace->active_view));

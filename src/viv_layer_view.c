@@ -15,7 +15,7 @@ static void layer_surface_map(struct wl_listener *listener, void *data) {
 	struct viv_layer_view *layer_view = wl_container_of(listener, layer_view, map);
 	layer_view->mapped = true;
 
-    layer_view->output->needs_layout = true;
+    viv_output_mark_for_relayout(layer_view->output);
 
     if (layer_view->layer_surface->current.keyboard_interactive) {
         viv_surface_focus(layer_view->server, layer_view->layer_surface->surface);
@@ -28,7 +28,7 @@ static void layer_surface_unmap(struct wl_listener *listener, void *data) {
 	struct viv_layer_view *layer_view = wl_container_of(listener, layer_view, unmap);
 	layer_view->mapped = false;
 
-    layer_view->output->needs_layout = true;
+    viv_output_mark_for_relayout(layer_view->output);
 
 	struct wlr_seat *seat = layer_view->output->server->seat;
 	struct wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
@@ -52,7 +52,7 @@ static void layer_surface_destroy(struct wl_listener *listener, void *data) {
 
 	wl_list_remove(&layer_view->output_link);
 
-    layer_view->output->needs_layout = true;
+    viv_output_mark_for_relayout(layer_view->output);
 
 	free(layer_view);
 }
