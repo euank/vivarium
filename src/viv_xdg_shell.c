@@ -135,8 +135,8 @@ static void implementation_set_pos(struct viv_view *view, uint32_t x, uint32_t y
 static void implementation_get_geometry(struct viv_view *view, struct wlr_box *geo_box) {
     ASSERT(view->type == VIV_VIEW_TYPE_XDG_SHELL);
     wlr_xdg_surface_get_geometry(view->xdg_surface, geo_box);
-    /* geo_box->x = view->x; */
-    /* geo_box->y = view->y; */
+    geo_box->x = view->x;
+    geo_box->y = view->y;
 }
 
 static void implementation_set_tiled(struct viv_view *view, uint32_t edges) {
@@ -221,18 +221,6 @@ static bool implementation_oversized(struct viv_view *view) {
     return surface_exceeds_bounds;
 }
 
-static void implementation_damage(struct viv_view *view) {
-    struct viv_output *output;
-
-    struct wlr_box geo_box;
-    viv_view_get_geometry(view, &geo_box);
-    // TODO: Subtract layout pos
-
-    wl_list_for_each(output, &view->server->outputs, link) {
-        wlr_output_damage_add_box(output->damage, &geo_box);
-    }
-}
-
 static struct viv_view_implementation xdg_view_implementation = {
     .set_size = &implementation_set_size,
     .set_pos = &implementation_set_pos,
@@ -244,7 +232,6 @@ static struct viv_view_implementation xdg_view_implementation = {
     .close = &implementation_close,
     .is_at = &implementation_is_at,
     .oversized = &implementation_oversized,
-    .damage = &implementation_damage,
 };
 
 static void handle_xdg_surface_commit(struct wl_listener *listener, void *data) {

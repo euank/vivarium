@@ -229,14 +229,12 @@ void viv_server_begin_interactive(struct viv_view *view, enum viv_cursor_mode mo
 	} else {
         struct wlr_box geo_box;
         viv_view_get_geometry(view, &geo_box);
-        double border_x = (view->x + geo_box.x) + ((edges & WLR_EDGE_RIGHT) ? geo_box.width : 0);
-        double border_y = (view->y + geo_box.y) + ((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
+        double border_x = (geo_box.x) + ((edges & WLR_EDGE_RIGHT) ? geo_box.width : 0);
+        double border_y = (geo_box.y) + ((edges & WLR_EDGE_BOTTOM) ? geo_box.height : 0);
         server->grab_state.x = server->cursor->x - border_x;
         server->grab_state.y = server->cursor->y - border_y;
 
         server->grab_state.geobox = geo_box;
-        server->grab_state.geobox.x += view->x;
-        server->grab_state.geobox.y += view->y;
 
         server->grab_state.resize_edges = edges;
 	}

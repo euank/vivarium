@@ -218,10 +218,8 @@ static void implementation_set_pos(struct viv_view *view, uint32_t x, uint32_t y
 }
 
 static void implementation_get_geometry(struct viv_view *view, struct wlr_box *geo_box) {
-    /* geo_box->x = view->x; */
-    /* geo_box->y = view->y; */
-    geo_box->x = 0;
-    geo_box->y = 0;
+    geo_box->x = view->x;
+    geo_box->y = view->y;
     geo_box->width = view->xwayland_surface->width;
     geo_box->height = view->xwayland_surface->height;
 }
@@ -301,11 +299,6 @@ static bool implementation_oversized(struct viv_view *view) {
     return surface_exceeds_bounds;
 }
 
-static void implementation_damage(struct viv_view *view) {
-    UNUSED(view);
-    // TODO
-}
-
 static struct viv_view_implementation xwayland_view_implementation = {
     .set_size = &implementation_set_size,
     .set_pos = &implementation_set_pos,
@@ -317,7 +310,6 @@ static struct viv_view_implementation xwayland_view_implementation = {
     .close = &implementation_close,
     .is_at = &implementation_is_at,
     .oversized = &implementation_oversized,
-    .damage = &implementation_damage
 };
 
 void viv_xwayland_view_init(struct viv_view *view, struct wlr_xwayland_surface *xwayland_surface) {

@@ -177,7 +177,6 @@ struct viv_view_implementation {
     void (*close)(struct viv_view *view);
     bool (*is_at)(struct viv_view *view, double lx, double ly, struct wlr_surface **surface, double *sx, double *sy);
     bool (*oversized)(struct viv_view *view);
-    void (*damage)(struct viv_view *view);
 };
 
 struct viv_view {

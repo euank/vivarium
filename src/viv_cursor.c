@@ -75,10 +75,8 @@ static void process_cursor_resize_view(struct viv_server *server, uint32_t time)
 		}
 	}
 
-	struct wlr_box geo_box;
-    viv_view_get_geometry(view, &geo_box);
-	view->x = new_left - geo_box.x;
-	view->y = new_top - geo_box.y;
+	view->x = new_left;
+	view->y = new_top;
 
 	int new_width = new_right - new_left;
 	int new_height = new_bottom - new_top;
