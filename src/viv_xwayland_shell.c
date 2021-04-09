@@ -218,6 +218,8 @@ static void implementation_set_pos(struct viv_view *view, uint32_t x, uint32_t y
 }
 
 static void implementation_get_geometry(struct viv_view *view, struct wlr_box *geo_box) {
+    /* geo_box->x = view->x; */
+    /* geo_box->y = view->y; */
     geo_box->x = 0;
     geo_box->y = 0;
     geo_box->width = view->xwayland_surface->width;

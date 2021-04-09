@@ -12,6 +12,7 @@
 #include <pixman-1/pixman.h>
 
 #include "viv_types.h"
+#include "viv_output.h"
 #include "viv_view.h"
 
 #define MAX(A, B) (A > B ? A : B)
@@ -439,6 +440,7 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
         }
     }
 
+    // Indicate when a frame is drawn
     static bool even = true;
     even = !even;
     if (even) {
@@ -452,7 +454,22 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
             .x = 30, .y = 0, .width = 10, .height = 10
         };
         float output_marker_colour[4] = {0.0, 1.0, 0.0, 1.0};
-        wlr_render_rect(renderer ,&output_marker_box, output_marker_colour, output->wlr_output->transform_matrix);
+        wlr_render_rect(renderer, &output_marker_box, output_marker_colour, output->wlr_output->transform_matrix);
+    }
+
+    // Mark damaged regions
+    float damage_colour[] = {1.0, 0.0, 0.0, 0.02};
+    int num_rects;
+    pixman_box32_t *rects = pixman_region32_rectangles(&damage, &num_rects);
+    for (int i = 0; i < num_rects; i++) {
+        pixman_box32_t rect = rects[i];
+        struct wlr_box box = {
+            .x = rect.x1,
+            .y = rect.y1,
+            .width = rect.x2 - rect.x1,
+            .height = rect.y2 - rect.y1,
+        };
+        wlr_render_rect(renderer, &box, damage_colour, output->wlr_output->transform_matrix);
     }
 #endif
 
@@ -479,4 +496,11 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
 
     // Swap the buffers
 	wlr_output_commit(output->wlr_output);
+
+#ifdef DEBUG
+    struct viv_server *server = output->server;
+    if (server->config->debug_no_damage_tracking) {
+        viv_output_damage(output);
+    }
+#endif
 }

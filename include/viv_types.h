@@ -295,6 +295,8 @@ struct viv_config {
 
     bool debug_mark_views_by_shell;
     bool debug_mark_active_output;
+    bool debug_mark_frame_draws;
+    bool debug_no_damage_tracking;
 };
 
 

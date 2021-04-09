@@ -135,6 +135,8 @@ static void implementation_set_pos(struct viv_view *view, uint32_t x, uint32_t y
 static void implementation_get_geometry(struct viv_view *view, struct wlr_box *geo_box) {
     ASSERT(view->type == VIV_VIEW_TYPE_XDG_SHELL);
     wlr_xdg_surface_get_geometry(view->xdg_surface, geo_box);
+    /* geo_box->x = view->x; */
+    /* geo_box->y = view->y; */
 }
 
 static void implementation_set_tiled(struct viv_view *view, uint32_t edges) {
@@ -253,6 +255,8 @@ static void handle_xdg_surface_commit(struct wl_listener *listener, void *data) 
     pixman_region32_t damage;
     pixman_region32_init(&damage);
     wlr_surface_get_effective_damage(surface, &damage);
+
+    pixman_region32_translate(&damage, view->x, view->y);
 
     struct viv_output *viv_output = wl_container_of(view->server->outputs.next, viv_output, link);
     struct wlr_output_damage *output_damage = viv_output->damage;

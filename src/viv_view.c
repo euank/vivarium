@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include <wlr/types/wlr_output_damage.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_surface.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -146,7 +147,18 @@ bool viv_view_oversized(struct viv_view *view) {
 }
 
 void viv_view_damage(struct viv_view *view) {
-    view->implementation->damage(view);
+    struct viv_output *output;
+
+    struct wlr_box geo_box;
+    viv_view_get_geometry(view, &geo_box);
+    // TODO: Subtract layout pos
+
+    geo_box.x = view->x;
+    geo_box.y = view->y;
+
+    wl_list_for_each(output, &view->server->outputs, link) {
+        wlr_output_damage_add_box(output->damage, &geo_box);
+    }
 }
 
 void viv_view_make_active(struct viv_view *view) {
