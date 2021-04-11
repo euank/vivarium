@@ -11,7 +11,10 @@
 
 void viv_workspace_mark_for_relayout(struct viv_workspace *workspace) {
     workspace->needs_layout = true;
-    viv_workspace_damage_views(workspace);
+    viv_workspace_damage_views(workspace);  // TODO: is this 100% redundant with damaging the output?
+    if (workspace->output) {
+        viv_output_damage(workspace->output);
+    }
 }
 
 void viv_workspace_focus_next_window(struct viv_workspace *workspace) {

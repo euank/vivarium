@@ -179,6 +179,14 @@ struct viv_view_implementation {
     bool (*oversized)(struct viv_view *view);
 };
 
+struct viv_xdg_popup {
+    struct viv_view *view;
+    struct wlr_xdg_popup *wlr_popup;
+
+    struct wl_listener surface_commit;
+    struct wl_listener destroy;
+};
+
 struct viv_view {
     enum viv_view_type type;
 
@@ -208,6 +216,7 @@ struct viv_view {
 
     // Surface bindings
     struct wl_listener surface_commit;
+    struct wl_listener new_xdg_popup;
 
     // Target positions, where the layout is trying to place the view
     int target_x, target_y;

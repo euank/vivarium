@@ -254,6 +254,50 @@ static void handle_xdg_surface_commit(struct wl_listener *listener, void *data) 
     pixman_region32_fini(&damage);
 }
 
+static void handle_popup_surface_commit(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_xdg_popup *popup = wl_container_of(listener, popup, surface_commit);
+    struct viv_view *view = popup->view;
+    struct wlr_surface *surface = popup->wlr_popup->base->surface;
+
+    pixman_region32_t damage;
+    pixman_region32_init(&damage);
+    wlr_surface_get_effective_damage(surface, &damage);
+
+    pixman_region32_translate(&damage, view->x + popup->wlr_popup->geometry.x, view->y + popup->wlr_popup->geometry.y);
+
+    struct viv_output *viv_output = wl_container_of(view->server->outputs.next, viv_output, link);
+    struct wlr_output_damage *output_damage = viv_output->damage;
+    wlr_output_damage_add(output_damage, &damage);
+
+    wlr_log(WLR_DEBUG, "popup for view %s commit", view->xdg_surface->toplevel->app_id);
+
+    pixman_region32_fini(&damage);
+}
+
+static void handle_popup_surface_destroy(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_xdg_popup *popup = wl_container_of(listener, popup, destroy);
+    wlr_log(WLR_INFO, "Popup being destroyed");
+    free(popup);
+}
+
+static void handle_xdg_surface_new_popup(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_view *view = wl_container_of(listener, view, new_xdg_popup);
+	struct wlr_xdg_popup *wlr_popup = data;
+
+    struct viv_xdg_popup *popup = calloc(1, sizeof(struct viv_xdg_popup));
+    popup->view = view;
+    popup->wlr_popup = wlr_popup;
+
+    popup->surface_commit.notify = handle_popup_surface_commit;
+    wl_signal_add(&wlr_popup->base->surface->events.commit, &popup->surface_commit);
+
+    popup->destroy.notify = handle_popup_surface_destroy;
+    wl_signal_add(&wlr_popup->base->surface->events.destroy, &popup->destroy);
+}
+
 void viv_xdg_view_init(struct viv_view *view, struct wlr_xdg_surface *xdg_surface) {
 
     view->type = VIV_VIEW_TYPE_XDG_SHELL;
@@ -270,6 +314,8 @@ void viv_xdg_view_init(struct viv_view *view, struct wlr_xdg_surface *xdg_surfac
 
     view->surface_commit.notify = handle_xdg_surface_commit;
     wl_signal_add(&xdg_surface->surface->events.commit, &view->surface_commit);
+    view->new_xdg_popup.notify = handle_xdg_surface_new_popup;
+    wl_signal_add(&xdg_surface->events.new_popup, &view->new_xdg_popup);
 
 	/* cotd */
 	struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;

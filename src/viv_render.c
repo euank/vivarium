@@ -458,7 +458,7 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
     }
 
     // Mark damaged regions
-    float damage_colour[] = {1.0, 0.0, 0.0, 0.02};
+    float damage_colour[] = {1.0, 0.0, 1.0, 0.05};
     int num_rects;
     pixman_box32_t *rects = pixman_region32_rectangles(&damage, &num_rects);
     for (int i = 0; i < num_rects; i++) {
