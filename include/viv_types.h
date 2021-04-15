@@ -184,6 +184,7 @@ struct viv_xdg_popup {
     struct wlr_xdg_popup *wlr_popup;
 
     struct wl_listener surface_commit;
+    struct wl_listener surface_unmap;
     struct wl_listener destroy;
 };
 

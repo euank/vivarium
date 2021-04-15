@@ -29,6 +29,7 @@ struct viv_render_data {
     uint32_t max_surfaces_to_render;
     int sx;
     int sy;
+    pixman_region32_t *damage;
 };
 
 static void render_surface(struct wlr_surface *surface, int sx, int sy, void *data) {
@@ -45,6 +46,8 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy, void *da
 
 	struct viv_view *view = rdata->view;
 	struct wlr_output *output = rdata->output;
+    struct wlr_renderer *renderer = rdata->renderer;
+    pixman_region32_t *damage = rdata->damage;
 
 	struct wlr_texture *texture = wlr_surface_get_texture(surface);
 	if (texture == NULL) {
@@ -73,12 +76,29 @@ static void render_surface(struct wlr_surface *surface, int sx, int sy, void *da
 	wlr_matrix_project_box(matrix, &box, transform, 0,
 		output->transform_matrix);
 
-	/* This takes our matrix, the texture, and an alpha, and performs the actual
-	 * rendering on the GPU. */
-	wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
+    int num_rects;
+	pixman_box32_t *rects = pixman_region32_rectangles(damage, &num_rects);
+    for (int i = 0; i < num_rects; i++) {
+        pixman_box32_t rect = rects[i];
+        struct wlr_box box = {
+            .x = rect.x1,
+            .y = rect.y1,
+            .width = rect.x2 - rect.x1,
+            .height = rect.y2 - rect.y1,
+        };
+        int output_width, output_height;
+        wlr_output_transformed_resolution(output, &output_width, &output_height);
+        wlr_box_transform(&box, &box, transform, output_width, output_height);
+        wlr_renderer_scissor(renderer, &box);
+
+        /* This takes our matrix, the texture, and an alpha, and performs the actual
+        * rendering on the GPU. */
+        wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
+    }
 
 	/* This lets the client know that we've displayed that frame and it can
 	 * prepare another one now if it likes. */
+    // TODO: Should be wlr_presentation_surface_sampled_on_output?
 	wlr_surface_send_frame_done(surface, rdata->when);
 
     if (rdata->limit_render_count) {
@@ -94,6 +114,48 @@ static void popup_render_surface(struct wlr_surface *surface, int sx, int sy, vo
     wlr_surface_for_each_surface(surface, render_surface, rdata);
 }
 
+static void render_rect_borders(struct wlr_renderer *renderer, struct viv_server *server, struct viv_output *output, double x, double y, int width, int height) {
+    double lx = 0, ly = 0;
+	wlr_output_layout_output_coords(server->output_layout, output->wlr_output, &lx, &ly);
+    x += lx;
+    y += ly;
+    float colour[4] = {0.1, 0.3, 1.0, 0.0};
+
+    int line_width = 3;
+
+    // TODO: account for scale factor
+
+    struct wlr_box box;
+
+    // bottom
+    box.x = x;
+    box.y = y;
+    box.width = width;
+    box.height = line_width;
+    wlr_render_rect(renderer, &box, colour, output->wlr_output->transform_matrix);
+
+    // top
+    box.x = x;
+    box.y = y + height - line_width;
+    box.width = width;
+    box.height = line_width;
+    wlr_render_rect(renderer, &box, colour, output->wlr_output->transform_matrix);
+
+    // left
+    box.x = x;
+    box.y = y;
+    box.width = line_width;
+    box.height = height;
+    wlr_render_rect(renderer, &box, colour, output->wlr_output->transform_matrix);
+
+    // right
+    box.x = x + width - line_width;
+    box.y = y;
+    box.width = line_width;
+    box.height = height;
+    wlr_render_rect(renderer, &box, colour, output->wlr_output->transform_matrix);
+
+}
 
 /// Render the given view's borders, on the given output. The border will be the active
 /// colour if is_active is true, or otherwise the inactive colour.
@@ -149,7 +211,7 @@ static void render_borders(struct viv_view *view, struct viv_output *output, boo
 
 }
 
-static void viv_render_xdg_view(struct wlr_renderer *renderer, struct viv_view *view, struct viv_output *output) {
+static void viv_render_xdg_view(struct wlr_renderer *renderer, struct viv_view *view, struct viv_output *output, pixman_region32_t *damage) {
     if (!view->mapped) {
         // Unmapped views don't need any further rendering
         return;
@@ -167,6 +229,7 @@ static void viv_render_xdg_view(struct wlr_renderer *renderer, struct viv_view *
         .max_surfaces_to_render = 1 + wl_list_length(&view->xdg_surface->surface->subsurfaces),
         .sx = 0,
         .sy = 0,
+        .damage = damage,
     };
 
     // Note this renders both the toplevel and any popups
@@ -226,7 +289,8 @@ static void viv_render_xdg_view(struct wlr_renderer *renderer, struct viv_view *
 }
 
 #ifdef XWAYLAND
-static void viv_render_xwayland_view(struct wlr_renderer *renderer, struct viv_view *view, struct viv_output *output) {
+static void viv_render_xwayland_view(struct wlr_renderer *renderer, struct viv_view *view, struct viv_output *output, pixman_region32_t *damage) {
+    UNUSED(damage);
     if (!view->mapped) {
         // Unmapped views don't need any further rendering
         return;
@@ -296,14 +360,14 @@ static void viv_render_xwayland_view(struct wlr_renderer *renderer, struct viv_v
 }
 #endif  // XWAYLAND
 
-void viv_render_view(struct wlr_renderer *renderer, struct viv_view *view, struct viv_output *output) {
+void viv_render_view(struct wlr_renderer *renderer, struct viv_view *view, struct viv_output *output, pixman_region32_t *damage) {
     switch (view->type) {
     case VIV_VIEW_TYPE_XDG_SHELL:
-        viv_render_xdg_view(renderer, view, output);
+        viv_render_xdg_view(renderer, view, output, damage);
         break;
 #ifdef XWAYLAND
     case VIV_VIEW_TYPE_XWAYLAND:
-        viv_render_xwayland_view(renderer, view, output);
+        viv_render_xwayland_view(renderer, view, output, damage);
         break;
 #endif
     default:
@@ -360,7 +424,22 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
 	/* Begin the renderer (calls glViewport and some other GL sanity checks) */
 	wlr_renderer_begin(renderer, width, height);
 
-	wlr_renderer_clear(renderer, output->server->config->clear_colour);
+    /* wlr_renderer_clear(renderer, (float[]){1.0, 0.0, 0.0, 1.0}); */
+
+	/* wlr_renderer_clear(renderer, (float[]){0.1, 0.1, 0.1, 1.0}); */
+    int num_rects;
+    pixman_box32_t *rects = pixman_region32_rectangles(&damage, &num_rects);
+    for (int i = 0; i < num_rects; i++) {
+        pixman_box32_t rect = rects[i];
+        struct wlr_box box = {
+            .x = rect.x1,
+            .y = rect.y1,
+            .width = rect.x2 - rect.x1,
+            .height = rect.y2 - rect.y1,
+        };
+        wlr_renderer_scissor(renderer, &box);
+        wlr_renderer_clear(renderer, output->server->config->clear_colour);
+    }
 
 	struct viv_view *view;
 
@@ -383,14 +462,14 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
         if (view->is_floating || (view == output->current_workspace->active_view)) {
             continue;
         }
-        viv_render_view(renderer, view, output);
+        viv_render_view(renderer, view, output, &damage);
 	}
 
     // Then render the active view if necessary
     if ((output->current_workspace->active_view != NULL) &&
         (output->current_workspace->active_view->mapped) &&
         (!output->current_workspace->active_view->is_floating)) {
-        viv_render_view(renderer, output->current_workspace->active_view, output);
+        viv_render_view(renderer, output->current_workspace->active_view, output, &damage);
     }
 
     // Render floating views that may be overhanging other workspaces
@@ -404,7 +483,7 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
             if (!view->is_floating) {
                 continue;
             }
-            viv_render_view(renderer, view, output);
+            viv_render_view(renderer, view, output, &damage);
         }
     }
 
@@ -413,7 +492,7 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
         if (!view->is_floating) {
             continue;
         }
-        viv_render_view(renderer, view, output);
+        viv_render_view(renderer, view, output, &damage);
 	}
 
     // Render any layer surfaces that should go on top of views
@@ -427,6 +506,8 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
             viv_render_layer_view(renderer, layer_view, output);
         }
     }
+
+    wlr_renderer_scissor(renderer, NULL);
 
 #ifdef DEBUG
     // Mark the currently-active output
@@ -457,20 +538,31 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
         wlr_render_rect(renderer, &output_marker_box, output_marker_colour, output->wlr_output->transform_matrix);
     }
 
-    // Mark damaged regions
-    float damage_colour[] = {1.0, 0.0, 1.0, 0.05};
-    int num_rects;
-    pixman_box32_t *rects = pixman_region32_rectangles(&damage, &num_rects);
-    for (int i = 0; i < num_rects; i++) {
-        pixman_box32_t rect = rects[i];
-        struct wlr_box box = {
-            .x = rect.x1,
-            .y = rect.y1,
-            .width = rect.x2 - rect.x1,
-            .height = rect.y2 - rect.y1,
-        };
-        wlr_render_rect(renderer, &box, damage_colour, output->wlr_output->transform_matrix);
-    }
+    /* // Mark damaged regions */
+    /* float damage_colour[] = {1.0, 0.0, 1.0, 0.05}; */
+    /* for (int i = 0; i < num_rects; i++) { */
+    /*     pixman_box32_t rect = rects[i]; */
+    /*     struct wlr_box box = { */
+    /*         .x = rect.x1, */
+    /*         .y = rect.y1, */
+    /*         .width = rect.x2 - rect.x1, */
+    /*         .height = rect.y2 - rect.y1, */
+    /*     }; */
+    /*     wlr_render_rect(renderer, &box, damage_colour, output->wlr_output->transform_matrix); */
+    /* } */
+
+    /* // Mark damaged regions */
+    /* for (int i = 0; i < num_rects; i++) { */
+    /*     pixman_box32_t rect = rects[i]; */
+    /*     struct wlr_box box = { */
+    /*         .x = rect.x1, */
+    /*         .y = rect.y1, */
+    /*         .width = rect.x2 - rect.x1, */
+    /*         .height = rect.y2 - rect.y1, */
+    /*     }; */
+    /*     render_rect_borders(renderer, output->server, output, box.x, box.y, box.width, box.height); */
+    /* } */
+    UNUSED(render_rect_borders);
 #endif
 
     // Have wlroots render software cursors if necessary (does nothing

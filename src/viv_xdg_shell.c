@@ -275,6 +275,24 @@ static void handle_popup_surface_commit(struct wl_listener *listener, void *data
     pixman_region32_fini(&damage);
 }
 
+static void handle_popup_surface_unmap(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_xdg_popup *popup = wl_container_of(listener, popup, surface_unmap);
+    struct viv_view *view = popup->view;
+
+    struct wlr_box geo_box = {
+        .x = view->x + popup->wlr_popup->geometry.x,
+        .y = view->y + popup->wlr_popup->geometry.y,
+        .width = popup->wlr_popup->geometry.width,
+        .height = popup->wlr_popup->geometry.height,
+    };
+
+    struct viv_output *output;
+    wl_list_for_each(output, &view->server->outputs, link) {
+        wlr_output_damage_add_box(output->damage, &geo_box);
+    }
+}
+
 static void handle_popup_surface_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct viv_xdg_popup *popup = wl_container_of(listener, popup, destroy);
@@ -293,6 +311,9 @@ static void handle_xdg_surface_new_popup(struct wl_listener *listener, void *dat
 
     popup->surface_commit.notify = handle_popup_surface_commit;
     wl_signal_add(&wlr_popup->base->surface->events.commit, &popup->surface_commit);
+
+    popup->surface_unmap.notify = handle_popup_surface_unmap;
+    wl_signal_add(&wlr_popup->base->events.unmap, &popup->surface_unmap);
 
     popup->destroy.notify = handle_popup_surface_destroy;
     wl_signal_add(&wlr_popup->base->surface->events.destroy, &popup->destroy);
