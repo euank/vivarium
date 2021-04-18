@@ -204,7 +204,7 @@ static void viv_render_xdg_view(struct wlr_renderer *renderer, struct viv_view *
 
     // Then render any popups
     rdata.limit_render_count = false;
-    wlr_xdg_surface_for_each_popup(view->xdg_surface, popup_render_surface, &rdata);
+    wlr_xdg_surface_for_each_popup_surface(view->xdg_surface, popup_render_surface, &rdata);
 
 #ifdef DEBUG
     if (output->server->config->debug_mark_views_by_shell) {
@@ -326,7 +326,7 @@ void viv_render_layer_view(struct wlr_renderer *renderer, struct viv_layer_view 
     };
 
     wlr_layer_surface_v1_for_each_surface(layer_view->layer_surface, render_surface, &rdata);
-    wlr_layer_surface_v1_for_each_popup(layer_view->layer_surface, render_surface, &rdata);
+    wlr_layer_surface_v1_for_each_popup_surface(layer_view->layer_surface, render_surface, &rdata);
 }
 
 static bool viv_layer_is(struct viv_layer_view *layer_view, enum zwlr_layer_shell_v1_layer layer) {
