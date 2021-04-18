@@ -1,0 +1,4 @@
+[wrap-git]
+directory = wayland
+url = https://github.com/wayland-project/wayland.git
+revision = tags/1.19.0
