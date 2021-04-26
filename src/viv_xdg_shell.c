@@ -1,3 +1,4 @@
+#include <pixman-1/pixman.h>
 #include <stdlib.h>
 #include <wlr/util/log.h>
 #include <wlr/types/wlr_output_damage.h>

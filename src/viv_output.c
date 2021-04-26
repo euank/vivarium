@@ -174,6 +174,5 @@ void viv_output_damage(struct viv_output *output) {
 }
 
 void viv_output_mark_for_relayout(struct viv_output *output) {
-    viv_output_mark_for_relayout(output);
     viv_output_damage(output);
 }

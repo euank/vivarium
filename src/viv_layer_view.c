@@ -1,4 +1,6 @@
+#include <pixman-1/pixman.h>
 #include <wayland-util.h>
+#include <wlr/types/wlr_output_damage.h>
 
 #include "wlr-layer-shell-unstable-v1-protocol.h"
 
@@ -7,6 +9,24 @@
 #include "viv_server.h"
 #include "viv_types.h"
 #include "viv_view.h"
+
+static void handle_layer_surface_commit(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_layer_view *layer_view = wl_container_of(listener, layer_view, surface_commit);
+    struct wlr_surface *surface = layer_view->layer_surface->surface;
+
+    pixman_region32_t damage;
+    pixman_region32_init(&damage);
+    wlr_surface_get_effective_damage(surface, &damage);
+
+    pixman_region32_translate(&damage, layer_view->x, layer_view->y);
+
+    struct viv_output *viv_output = wl_container_of(layer_view->server->outputs.next, viv_output, link);
+    struct wlr_output_damage *output_damage = viv_output->damage;
+    wlr_output_damage_add(output_damage, &damage);
+
+    pixman_region32_fini(&damage);
+}
 
 static void layer_surface_map(struct wl_listener *listener, void *data) {
     UNUSED(data);
@@ -77,6 +97,9 @@ void viv_layer_view_init(struct viv_layer_view *layer_view, struct viv_server *s
 	layer_view->new_popup.notify = layer_surface_new_popup;
 	wl_signal_add(&layer_surface->events.new_popup, &layer_view->new_popup);
     UNUSED(layer_surface_new_popup);
+
+    layer_view->surface_commit.notify = handle_layer_surface_commit;
+    wl_signal_add(&layer_surface->surface->events.commit, &layer_view->surface_commit);
 
     struct viv_output *output = viv_output_of_wlr_output(server, layer_surface->output);
     wl_list_insert(&output->layer_views, &layer_view->output_link);

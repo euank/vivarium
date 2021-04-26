@@ -256,9 +256,9 @@ static void viv_render_xdg_view(struct wlr_renderer *renderer, struct viv_view *
         wlr_renderer_scissor(renderer, &target_geometry);
     }
     wlr_surface_for_each_surface(view->xdg_surface->surface, render_surface, &rdata);
-    if (surface_exceeds_bounds) {
-        wlr_renderer_scissor(renderer, NULL);
-    }
+
+    // Always clear the scissoring so that we can draw borders anywhere
+    wlr_renderer_scissor(renderer, NULL);
 
     // Then render the main surface's borders
     bool is_grabbed = ((output->server->cursor_mode != VIV_CURSOR_PASSTHROUGH) &&
@@ -307,6 +307,7 @@ static void viv_render_xwayland_view(struct wlr_renderer *renderer, struct viv_v
         .limit_render_count = false,
         .sx = 0,
         .sy = 0,
+        .damage = damage,
     };
 
     struct wlr_box target_geometry = {
@@ -376,7 +377,7 @@ void viv_render_view(struct wlr_renderer *renderer, struct viv_view *view, struc
 }
 
 
-void viv_render_layer_view(struct wlr_renderer *renderer, struct viv_layer_view *layer_view, struct viv_output *output) {
+void viv_render_layer_view(struct wlr_renderer *renderer, struct viv_layer_view *layer_view, struct viv_output *output, pixman_region32_t *damage) {
     if (!layer_view->mapped) {
         // Unmapped layer views don't need drawing
         return;
@@ -392,6 +393,7 @@ void viv_render_layer_view(struct wlr_renderer *renderer, struct viv_layer_view 
         .renderer = renderer,
         .when = &now,
         .limit_render_count = false,
+        .damage = damage,
     };
 
     wlr_layer_surface_v1_for_each_surface(layer_view->layer_surface, render_surface, &rdata);
@@ -448,12 +450,12 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
     // First render layer-protocol surfaces in the background or bottom layers
     wl_list_for_each_reverse(layer_view, &output->layer_views, output_link) {
         if (viv_layer_is(layer_view, ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND)) {
-            viv_render_layer_view(renderer, layer_view, output);
+            viv_render_layer_view(renderer, layer_view, output, &damage);
         }
     }
     wl_list_for_each_reverse(layer_view, &output->layer_views, output_link) {
         if (viv_layer_is(layer_view, ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM)) {
-            viv_render_layer_view(renderer, layer_view, output);
+            viv_render_layer_view(renderer, layer_view, output, &damage);
         }
     }
 
@@ -498,12 +500,12 @@ void viv_render_output(struct wlr_renderer *renderer, struct viv_output *output)
     // Render any layer surfaces that should go on top of views
     wl_list_for_each_reverse(layer_view, &output->layer_views, output_link) {
         if (viv_layer_is(layer_view, ZWLR_LAYER_SHELL_V1_LAYER_TOP)) {
-            viv_render_layer_view(renderer, layer_view, output);
+            viv_render_layer_view(renderer, layer_view, output, &damage);
         }
     }
     wl_list_for_each_reverse(layer_view, &output->layer_views, output_link) {
         if (viv_layer_is(layer_view, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY)) {
-            viv_render_layer_view(renderer, layer_view, output);
+            viv_render_layer_view(renderer, layer_view, output, &damage);
         }
     }
 

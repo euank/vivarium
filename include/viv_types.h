@@ -151,6 +151,7 @@ struct viv_layer_view {
     struct wl_listener unmap;
     struct wl_listener destroy;
     struct wl_listener new_popup;
+    struct wl_listener surface_commit;
     bool mapped;
 
     struct wl_list output_link;
