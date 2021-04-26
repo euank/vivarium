@@ -16,6 +16,26 @@ static bool guess_should_be_floating(struct viv_view *view) {
     return (view->xdg_surface->toplevel->parent != NULL);
 }
 
+static void handle_xdg_surface_commit(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_view *view = wl_container_of(listener, view, surface_commit);
+    struct wlr_surface *surface = view->xdg_surface->surface;
+
+    pixman_region32_t damage;
+    pixman_region32_init(&damage);
+    wlr_surface_get_effective_damage(surface, &damage);
+
+    pixman_region32_translate(&damage, view->x, view->y);
+
+    struct viv_output *viv_output = wl_container_of(view->server->outputs.next, viv_output, link);
+    struct wlr_output_damage *output_damage = viv_output->damage;
+    wlr_output_damage_add(output_damage, &damage);
+
+    wlr_log(WLR_DEBUG, "view %s commit", view->xdg_surface->toplevel->app_id);
+
+    pixman_region32_fini(&damage);
+}
+
 static void xdg_surface_map(struct wl_listener *listener, void *data) {
     UNUSED(data);
 	/* Called when the surface is mapped, or ready to display on-screen. */
@@ -49,6 +69,9 @@ static void xdg_surface_map(struct wl_listener *listener, void *data) {
     }
 
     viv_workspace_add_view(view->workspace, view);
+
+    view->surface_commit.notify = handle_xdg_surface_commit;
+    wl_signal_add(&view->xdg_surface->surface->events.commit, &view->surface_commit);
 }
 
 static void xdg_surface_unmap(struct wl_listener *listener, void *data) {
@@ -235,26 +258,6 @@ static struct viv_view_implementation xdg_view_implementation = {
     .oversized = &implementation_oversized,
 };
 
-static void handle_xdg_surface_commit(struct wl_listener *listener, void *data) {
-    UNUSED(data);
-    struct viv_view *view = wl_container_of(listener, view, surface_commit);
-    struct wlr_surface *surface = view->xdg_surface->surface;
-
-    pixman_region32_t damage;
-    pixman_region32_init(&damage);
-    wlr_surface_get_effective_damage(surface, &damage);
-
-    pixman_region32_translate(&damage, view->x, view->y);
-
-    struct viv_output *viv_output = wl_container_of(view->server->outputs.next, viv_output, link);
-    struct wlr_output_damage *output_damage = viv_output->damage;
-    wlr_output_damage_add(output_damage, &damage);
-
-    wlr_log(WLR_DEBUG, "view %s commit", view->xdg_surface->toplevel->app_id);
-
-    pixman_region32_fini(&damage);
-}
-
 static void handle_popup_surface_commit(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct viv_xdg_popup *popup = wl_container_of(listener, popup, surface_commit);
@@ -334,8 +337,6 @@ void viv_xdg_view_init(struct viv_view *view, struct wlr_xdg_surface *xdg_surfac
 	view->destroy.notify = xdg_surface_destroy;
 	wl_signal_add(&xdg_surface->events.destroy, &view->destroy);
 
-    view->surface_commit.notify = handle_xdg_surface_commit;
-    wl_signal_add(&xdg_surface->surface->events.commit, &view->surface_commit);
     view->new_xdg_popup.notify = handle_xdg_surface_new_popup;
     wl_signal_add(&xdg_surface->events.new_popup, &view->new_xdg_popup);
 
