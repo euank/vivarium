@@ -305,7 +305,6 @@ static void handle_popup_surface_destroy(struct wl_listener *listener, void *dat
 }
 
 static void handle_xdg_surface_new_popup(struct wl_listener *listener, void *data) {
-    UNUSED(data);
     struct viv_view *view = wl_container_of(listener, view, new_xdg_popup);
 	struct wlr_xdg_popup *wlr_popup = data;
 

@@ -77,10 +77,68 @@ static void layer_surface_destroy(struct wl_listener *listener, void *data) {
 	free(layer_view);
 }
 
-static void layer_surface_new_popup(struct wl_listener *listener, void *data) {
-    UNUSED(listener);
+static void handle_popup_surface_commit(struct wl_listener *listener, void *data) {
     UNUSED(data);
-    wlr_log(WLR_ERROR, "New layer surface popup event not yet handled");
+    struct viv_xdg_popup *popup = wl_container_of(listener, popup, surface_commit);
+    struct viv_view *view = popup->view;
+    struct wlr_surface *surface = popup->wlr_popup->base->surface;
+
+    pixman_region32_t damage;
+    pixman_region32_init(&damage);
+    wlr_surface_get_effective_damage(surface, &damage);
+
+    pixman_region32_translate(&damage, view->x + popup->wlr_popup->geometry.x, view->y + popup->wlr_popup->geometry.y);
+
+    struct viv_output *viv_output = wl_container_of(view->server->outputs.next, viv_output, link);
+    struct wlr_output_damage *output_damage = viv_output->damage;
+    wlr_output_damage_add(output_damage, &damage);
+
+    wlr_log(WLR_DEBUG, "popup for view %s commit", view->xdg_surface->toplevel->app_id);
+
+    pixman_region32_fini(&damage);
+}
+
+static void handle_popup_surface_unmap(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_xdg_popup *popup = wl_container_of(listener, popup, surface_unmap);
+    struct viv_view *view = popup->view;
+
+    struct wlr_box geo_box = {
+        .x = view->x + popup->wlr_popup->geometry.x,
+        .y = view->y + popup->wlr_popup->geometry.y,
+        .width = popup->wlr_popup->geometry.width,
+        .height = popup->wlr_popup->geometry.height,
+    };
+
+    struct viv_output *output;
+    wl_list_for_each(output, &view->server->outputs, link) {
+        wlr_output_damage_add_box(output->damage, &geo_box);
+    }
+}
+
+static void handle_popup_surface_destroy(struct wl_listener *listener, void *data) {
+    UNUSED(data);
+    struct viv_xdg_popup *popup = wl_container_of(listener, popup, destroy);
+    wlr_log(WLR_INFO, "Popup being destroyed");
+    free(popup);
+}
+
+static void layer_surface_new_popup(struct wl_listener *listener, void *data) {
+    struct viv_view *view = wl_container_of(listener, view, new_xdg_popup);
+	struct wlr_xdg_popup *wlr_popup = data;
+
+    struct viv_xdg_popup *popup = calloc(1, sizeof(struct viv_xdg_popup));
+    popup->view = view;
+    popup->wlr_popup = wlr_popup;
+
+    popup->surface_commit.notify = handle_popup_surface_commit;
+    wl_signal_add(&wlr_popup->base->surface->events.commit, &popup->surface_commit);
+
+    popup->surface_unmap.notify = handle_popup_surface_unmap;
+    wl_signal_add(&wlr_popup->base->events.unmap, &popup->surface_unmap);
+
+    popup->destroy.notify = handle_popup_surface_destroy;
+    wl_signal_add(&wlr_popup->base->surface->events.destroy, &popup->destroy);
 }
 
 void viv_layer_view_init(struct viv_layer_view *layer_view, struct viv_server *server, struct wlr_layer_surface_v1 *layer_surface) {
