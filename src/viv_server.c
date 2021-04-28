@@ -518,7 +518,7 @@ static void server_keyboard_handle_key(
     // If the key completes a configured keybinding, run the configured response function
 	bool handled = false;
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
-	if (event->state == WLR_KEY_PRESSED) {
+	if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		for (int i = 0; i < nsyms; i++) {
             wlr_log(WLR_DEBUG, "Keysym %d pressed, keycode %d", syms[i], keycode);
 			handled = handle_keybinding(server, keycode, syms[i], modifiers);
@@ -828,9 +828,9 @@ void viv_server_init(struct viv_server *server) {
     // backend for the environment, e.g. an X11 window if running under X.
 #ifdef HEADLESS_TEST
     // Use a headless backend for CI testing without any actual outputs
-	server->backend = wlr_headless_backend_create(server->wl_display, NULL);
+	server->backend = wlr_headless_backend_create(server->wl_display);
 #else
-	server->backend = wlr_backend_autocreate(server->wl_display, NULL);
+	server->backend = wlr_backend_autocreate(server->wl_display);
 #endif
 
     // Init the default wlroots GLES2 renderer

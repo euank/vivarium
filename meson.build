@@ -35,7 +35,7 @@ endif
 cc = meson.get_compiler('c')
 
 # For wlroots, use the system version if the correct version is available
-wlroots_dep = dependency('wlroots', version : '0.12.0', fallback : ['wlroots', 'wlroots'])
+wlroots_dep = dependency('wlroots', version : '0.13.0', fallback : ['wlroots', 'wlroots'])
 
 tomlc99_dep = dependency('toml', fallback : ['tomlc99', 'tomlc99_static_dep'])
 
@@ -43,9 +43,9 @@ tomlc99_dep = dependency('toml', fallback : ['tomlc99', 'tomlc99_static_dep'])
 fff_dep = dependency('fff', fallback : ['fff', 'fff_dep'])
 unity_dep = dependency('unity', fallback : ['unity', 'unity_dep'])
 
-wayland_server_dep = dependency('wayland-server')
-wayland_client_dep = dependency('wayland-client')
-wayland_protocols_dep = dependency('wayland-protocols')
+wayland_server_dep = dependency('wayland-server', fallback : ['wayland', 'wayland_server'])
+wayland_client_dep = dependency('wayland-client', fallback : ['wayland', 'wayland_client'])
+wayland_protocols_dep = dependency('wayland-protocols', fallback : ['wayland', 'wayland_protocl_c'])
 xkbcommon_dep = dependency('xkbcommon')
 libinput_dep = dependency('libinput')
 xcb_dep = dependency('xcb', required: get_option('xwayland'))
